@@ -1,4 +1,3 @@
-// src/features/tasks/TaskCard.jsx
 import React from 'react';
 
 const TaskCard = ({ task }) => {
@@ -6,8 +5,6 @@ const TaskCard = ({ task }) => {
     <div className="task-card-content">
       <h4>{task.taskTitle}</h4>
       <p>{task.taskDescription}</p>
-      <p><strong>Assigned To:</strong> {task.assignedEmployee}</p>
-      <p><strong>ETA:</strong> {task.eta}</p>
       {task.referenceImages && task.referenceImages.length > 0 && (
         <div>
           <strong>Reference Images:</strong>
@@ -19,5 +16,4 @@ const TaskCard = ({ task }) => {
     </div>
   );
 };
-
 export default TaskCard;

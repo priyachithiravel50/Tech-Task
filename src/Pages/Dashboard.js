@@ -1,86 +1,123 @@
-// src/pages/Dashboard.jsx
-import React, { useState } from 'react';
+import React, { useContext } from 'react';
+import { Box, Grid, Paper,Typography, Avatar,LinearProgress, Divider,Chip,useMediaQuery} from '@mui/material';
 import { AppContext } from '../Context/AppContext';
-import { Button } from '../Component/Button';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import TaskCard from '../Pages/TaskCard';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 const Dashboard = () => {
-  const { state } = React.useContext(AppContext);
-  const [selectedProject, setSelectedProject] = useState('');
-
+  const { state } = useContext(AppContext);
+  const isMobile = useMediaQuery('(max-width:600px)');
+  const projectCount = state.projects.length;
+  const employeeCount = state.employees.length;
+  const taskCount = state.tasks.length;
+  const completedTasks = state.tasks.filter(task => task.status === 'Completed').length;
+  const completionRate = taskCount > 0 ? Math.round((completedTasks / taskCount) * 100) : 0;
   const handleOnDragEnd = (result) => {
-    const { destination, source } = result;
-
-    if (!destination) return;
-
-    if (destination.index === source.index && destination.droppableId === source.droppableId) return;
-
+    if (!result.destination) return;
     const tasks = Array.from(state.tasks);
-    const [removed] = tasks.splice(source.index, 1);
-    tasks.splice(destination.index, 0, removed);
-
-    // Update the task order
-    dispatch({ type: 'SET_TASKS', payload: tasks });
+    const [reorderedTask] = tasks.splice(result.source.index, 1);
+    tasks.splice(result.destination.index, 0, reorderedTask);
   };
-
-  const handleProjectFilterChange = (e) => {
-    setSelectedProject(e.target.value);
-  };
-
-  const filteredTasks = selectedProject
-    ? state.tasks.filter((task) => task.projectId === selectedProject)
-    : state.tasks;
+  const statusColumns = ['Pending', 'In Progress', 'Completed', 'Reopen'];
 
   return (
-    <div>
-      <div>
-        <select onChange={handleProjectFilterChange} value={selectedProject}>
-          <option value="">All Projects</option>
-          {state.projects.map((project) => (
-            <option key={project.id} value={project.id}>
-              {project.projectTitle}
-            </option>
+    <Box sx={{ p: isMobile ? 1 : 3 }}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={6} sm={6} md={3}>
+          <Paper elevation={3} sx={{ px:16,py:4, textAlign: 'center' }}>
+            <Typography variant="h6">Projects</Typography>
+            <Typography variant="h4" sx={{ my: 1 }}>{projectCount}</Typography>
+            <LinearProgress variant="determinate" value={100} color="primary"sx={{ height: 8, borderRadius: 4 }}/>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper elevation={3} sx={{ px:15,py:4, textAlign: 'center' }}>
+            <Typography variant="h6">Employees</Typography>
+            <Typography variant="h4" sx={{ my: 1 }}>{employeeCount}</Typography>
+            <LinearProgress variant="determinate" value={100} color="secondary"sx={{ height: 8, borderRadius: 4 }}/>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper elevation={3} sx={{ px:14,py:4, textAlign: 'center' }}>
+            <Typography variant="h6">Total Tasks</Typography>
+            <Typography variant="h4" sx={{ my: 1 }}>{taskCount}</Typography>
+            <LinearProgress variant="determinate" value={100} color="info"sx={{ height: 8, borderRadius: 4 }}/>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper elevation={3} sx={{ px:12,py:4, textAlign: 'center' }}>
+            <Typography variant="h6">Completion Rate</Typography>
+            <Typography variant="h4" sx={{ my: 1 }}>{completionRate}%</Typography>
+            <LinearProgress  variant="determinate" value={completionRate} color="success"sx={{ height: 8, borderRadius: 4 }}/>
+          </Paper>
+        </Grid>
+      </Grid>
+      <Paper elevation={3} sx={{ p: 7, mb: 4 }}>
+        <Typography variant="h6" gutterBottom>Recent Projects</Typography>
+        <Divider sx={{ mb: 2 }} />
+        <Grid container spacing={2}>
+          {state.projects.slice(0, 4).map(project => (
+        <Grid item xs={12} sm={6} md={3} key={project.id}>
+          <Paper sx={{ p: 2, height: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              {project.logo && (<Avatar src={project.logo} sx={{ mr: 2 }} />)}
+              <Typography variant="subtitle1">{project.title}</Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box',WebkitLineClamp: 2,WebkitBoxOrient: 'vertical',overflow: 'hidden'}}>{project.description}</Typography>
+            <Chip label={`${project.tasks?.length || 0} tasks`} size="small" sx={{ mt: 1 }}/>
+           </Paper>
+            </Grid>
           ))}
-        </select>
-      </div>
-
+        </Grid>
+      </Paper>
+      <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
+        <Typography variant="h6" gutterBottom>Task Board</Typography>
+        <Divider sx={{ mb: 2 }} />
       <DragDropContext onDragEnd={handleOnDragEnd}>
-        <div className="task-columns">
-          {['Need to Do', 'In Progress', 'Need for Test', 'Completed', 'Re-open'].map((status) => (
-            <Droppable key={status} droppableId={status}>
-              {(provided) => (
-                <div
-                  className="task-column"
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                >
-                  <h3>{status}</h3>
-                  {filteredTasks
-                    .filter((task) => task.status === status)
-                    .map((task, index) => (
-                      <Draggable key={task.id} draggableId={task.id} index={index}>
-                        {(provided) => (
-                          <div
-                            className="task-card"
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                          >
-                            <TaskCard task={task} />
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
+        <Grid container spacing={2}>
+          {statusColumns.map(status => (
+            <Grid item xs={12} sm={6} md={3} key={status}>
+              <Droppable droppableId={status}>
+            {(provided) => (
+            <Paper {...provided.droppableProps}ref={provided.innerRef}sx={{ py: 1,px:14, minHeight: '50px',backgroundColor: 'background.default'}}>
+                <Typography variant="subtitle1" sx={{ mb: 2 }}>{status} ({state.tasks.filter(t => t.status === status).length})</Typography>
+                {state.tasks.filter(task => task.status === status).map((task, index) => (
+                <Draggable key={task.id} draggableId={task.id} index={index}>
+                  {(provided) => (
+                    <Box ref={provided.innerRef}{...provided.draggableProps}{...provided.dragHandleProps}sx={{ mb: 2, }}>
+                    <TaskCard task={task} />
+                    </Box>
+                  )}
+                </Draggable>
+              ))}
                   {provided.placeholder}
-                </div>
+                </Paper>
               )}
-            </Droppable>
+                </Droppable>
+              </Grid>
+            ))}
+          </Grid>
+        </DragDropContext>
+      </Paper>
+      <Paper elevation={3} sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>Team Members</Typography>
+        <Divider sx={{ mb: 2 }} />
+        <Grid container spacing={2}>
+        {state.employees.slice(0, 6).map(employee => (
+          <Grid item xs={12} sm={6} md={4} key={employee.id}>
+            <Paper sx={{ p: 2, display: 'flex', alignItems: 'center' }}>
+            <Avatar src={employee.profileImage} sx={{ width: 56, height: 56, mr: 2 }}/>
+            <Box>
+              <Typography variant="subtitle1">{employee.name}</Typography>
+              <Typography variant="body2" color="text.secondary">{employee.position}</Typography>
+              <Chip label={`${employee.tasks?.length || 0} tasks`} size="small" sx={{ mt: 1 }}/>
+              </Box>
+            </Paper>
+            </Grid>
           ))}
-        </div>
-      </DragDropContext>
-    </div>
+        </Grid>
+      </Paper>
+    </Box>
   );
 };
-
 export default Dashboard;

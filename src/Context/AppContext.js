@@ -1,6 +1,4 @@
-// src/context/AppContext.jsx
 import { createContext, useReducer, useEffect } from 'react';
-
 const initialState = {
   employees: [],
   projects: [],

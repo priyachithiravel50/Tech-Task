@@ -1,66 +1,78 @@
-// src/pages/EmployeeManagement.jsx
-import React, { useState, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
+import { Box, Paper, useMediaQuery } from '@mui/material';
 import { AppContext } from '../Context/AppContext';
-import Button from '../Component/Button';
-import { useForm } from 'react-hook-form';
-import Input from '../Component/Input';
-import { v4 as uuidv4 } from 'uuid';
+import EmployeeForm from '../features/Employees/EmployeeForm';
+import EmployeeTable from '../features/Employees/EmployeeTable';
+import ConfirmDialog from '../features/Employees/Projects/ConfirmDialog';
 
 const EmployeeManagement = () => {
   const { state, dispatch } = useContext(AppContext);
-  const { register, handleSubmit, control, reset } = useForm();
-  const [editingEmployee, setEditingEmployee] = useState(null);
-
-  const onSubmit = (data) => {
-    if (editingEmployee) {
-      const updatedEmployees = state.employees.map((employee) =>
-        employee.id === editingEmployee.id ? { ...employee, ...data } : employee
-      );
-      dispatch({ type: 'SET_EMPLOYEES', payload: updatedEmployees });
-    } else {
-      const newEmployee = { id: uuidv4(), ...data };
-      dispatch({ type: 'SET_EMPLOYEES', payload: [...state.employees, newEmployee] });
+  const isMobile = useMediaQuery('(max-width:600px)');
+  const [formData, setFormData] = useState({ name: '', position: '', email: '', profileImage: '' });
+  const [editId, setEditId] = useState(null);
+  const [error, setError] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  useEffect(() => {
+    const savedEmployees = localStorage.getItem('employees');
+    if (savedEmployees) {
+      dispatch({ type: 'SET_EMPLOYEES', payload: JSON.parse(savedEmployees) });
     }
-    reset();
-    setEditingEmployee(null);
+  }, [dispatch]);
+  useEffect(() => {
+    localStorage.setItem('employees', JSON.stringify(state.employees));
+  }, [state.employees]);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
-
+  const validateForm = () => {
+    if (!formData.name.trim()) return setError('Employee name is required'), false;
+    if (!formData.position.trim()) return setError('Position is required'), false;
+    if (!formData.email.trim()) return setError('Email is required'), false;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return setError('Please enter a valid email'), false;
+    return true;
+  };
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    const employeeData = { ...formData, id: editId || Date.now().toString() };
+    if (editId) {
+      dispatch({
+        type: 'SET_EMPLOYEES',
+        payload: state.employees.map(emp => (emp.id === editId ? employeeData : emp))
+      });
+    } else {
+      dispatch({ type: 'SET_EMPLOYEES', payload: [...state.employees, employeeData] });
+    }
+    resetForm();
+  };
+  const resetForm = () => {
+    setFormData({ name: '', position: '', email: '', profileImage: '' });
+    setEditId(null);
+    setError('');
+  };
   const handleEdit = (employee) => {
-    setEditingEmployee(employee);
-    reset(employee);
+    setFormData(employee);
+    setEditId(employee.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  const handleDelete = (id) => {
-    const updatedEmployees = state.employees.filter((employee) => employee.id !== id);
-    dispatch({ type: 'SET_EMPLOYEES', payload: updatedEmployees });
+  const handleDelete = () => {
+    dispatch({ type: 'SET_EMPLOYEES', payload: state.employees.filter(e => e.id !== deleteId) });
+    setConfirmOpen(false);
   };
-
+  const openDeleteConfirm = (id) => {
+    setDeleteId(id);
+    setConfirmOpen(true);
+  };
   return (
-    <div>
-      <h2>Employee Management</h2>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Input name="name" label="Name" control={control} required />
-        <Input name="position" label="Position" control={control} required />
-        <Input name="email" label="Email" control={control} required />
-        <Input name="profileImage" label="Profile Image URL" control={control} required />
-        <Button type="submit">{editingEmployee ? 'Update Employee' : 'Add Employee'}</Button>
-      </form>
-
-      <h3>Employee List</h3>
-      <ul>
-        {state.employees.map((employee) => (
-          <li key={employee.id}>
-            <div>
-              <img src={employee.profileImage} alt="profile" width="50" height="50" />
-              <span>{employee.name} - {employee.position}</span>
-              <Button onClick={() => handleEdit(employee)}>Edit</Button>
-              <Button onClick={() => handleDelete(employee.id)}>Delete</Button>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Box sx={{ p: isMobile ? 1 : 3 }}>
+      <Paper elevation={3} sx={{ p: isMobile ? 2 : 3, mb: 4, maxWidth: '800px', mx: 'auto' }}>
+        <EmployeeForm formData={formData}handleChange={handleChange}handleSubmit={handleSubmit}resetForm={resetForm}editId={editId}error={error}setError={setError}isMobile={isMobile} />
+      </Paper>
+      <EmployeeTable employees={state.employees}handleEdit={handleEdit}openDeleteConfirm={openDeleteConfirm}isMobile={isMobile}/>
+      <ConfirmDialog open={confirmOpen}onClose={() => setConfirmOpen(false)}onConfirm={handleDelete}/>
+    </Box>
   );
 };
-
 export default EmployeeManagement;
